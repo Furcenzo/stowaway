@@ -3,6 +3,7 @@
 
 import AppKit
 import ApplicationServices
+import os
 
 /// A running app that has at least one icon in the menu bar.
 struct MenuBarApp: Identifiable, Equatable {
@@ -17,6 +18,8 @@ struct MenuBarApp: Identifiable, Equatable {
 /// Reads the menu bar through Accessibility. In macOS 27 every icon is drawn by MenuBarAgent in one window;
 /// its Accessibility tree has one group per icon with the owning app inside.
 @MainActor enum MenuBarItems {
+    private static let log = Logger(subsystem: "io.github.furcenzo.stowaway", category: "items")
+
     /// Processes that draw the menu bar itself or whose icons can't be hidden as an app.
     private static let excluded: Set<String> = ["com.apple.MenuBarAgent", "com.apple.controlcenter", "com.apple.systemuiserver"]
 
@@ -68,7 +71,12 @@ struct MenuBarApp: Identifiable, Equatable {
         let element = AXUIElementCreateApplication(agent.processIdentifier)
         var result: [pid_t: [CGRect]] = [:]
         // MenuBarAgent has a window per display and Space with the same icons; the first one is enough.
-        guard let window = (attribute(element, kAXWindowsAttribute) as? [AXUIElement])?.first else { return [:] }
+        var windows: AnyObject?
+        let error = AXUIElementCopyAttributeValue(element, kAXWindowsAttribute as CFString, &windows)
+        guard let window = (windows as? [AXUIElement])?.first else {
+            log.notice("MenuBarAgent windows: AX error \(error.rawValue, privacy: .public)")
+            return [:]
+        }
         for group in attribute(window, kAXChildrenAttribute) as? [AXUIElement] ?? [] {
             guard let owner = (attribute(group, kAXChildrenAttribute) as? [AXUIElement])?.first,
                   (attribute(owner, kAXRoleAttribute) as? String) == kAXApplicationRole else { continue }

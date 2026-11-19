@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Furcenzo
 
 import AppKit
+import os
 import StowawayCore
 import SwiftUI
 
@@ -19,6 +20,7 @@ import SwiftUI
     private var known: KnownItems
     /// False until Accessibility is allowed and the icons are learned; nothing is hidden before that.
     private var started = false
+    private static let log = Logger(subsystem: "io.github.furcenzo.stowaway", category: "controller")
     private static let layoutKey = "layout"
     private static let knownKey = "knownItems"
 
@@ -82,9 +84,20 @@ import SwiftUI
 
     /// Everything is still visible: remember which apps have icons, then hide them.
     private func startHiding() {
-        started = true
-        learn(MenuBarItems.visibleCounts())
-        applyLayout()
+        Task { [weak self] in
+            // Right after launch (or after a previous Stowaway quit) MenuBarAgent may still be redrawing: retry max 5 s.
+            var counts: [String: Int] = [:]
+            for _ in 0..<10 {
+                counts = MenuBarItems.visibleCounts()
+                if !counts.isEmpty { break }
+                try? await Task.sleep(for: .milliseconds(500))
+            }
+            Self.log.notice("learned \(counts.count, privacy: .public) apps, trusted \(MenuBarItems.isTrusted, privacy: .public)")
+            guard let self else { return }
+            started = true
+            learn(counts)
+            applyLayout()
+        }
     }
 
     private func learn(_ counts: [String: Int]) {
