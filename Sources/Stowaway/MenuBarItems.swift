@@ -49,10 +49,11 @@ struct MenuBarApp: Identifiable, Equatable {
         .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
-    /// Bundle ID → number of icons that MenuBarAgent shows right now.
-    static func visibleCounts() -> [String: Int] {
+    /// Bundle ID → number of icons that MenuBarAgent shows right now; nil when the menu bar can't be read.
+    static func visibleCounts() -> [String: Int]? {
+        guard let visible = visibleFrames() else { return nil }
         var counts: [String: Int] = [:]
-        for (pid, frames) in visibleFrames() {
+        for (pid, frames) in visible {
             guard let id = NSRunningApplication(processIdentifier: pid)?.bundleIdentifier else { continue }
             counts[id, default: 0] += frames.count
         }
@@ -61,13 +62,13 @@ struct MenuBarApp: Identifiable, Equatable {
 
     /// Frames (screen coordinates, top left origin) of the icons of `pid` that MenuBarAgent shows right now, left to right.
     static func frames(of pid: pid_t) -> [CGRect] {
-        visibleFrames()[pid] ?? []
+        visibleFrames()?[pid] ?? []
     }
 
-    /// The icons MenuBarAgent shows right now, by owning process, left to right.
-    private static func visibleFrames() -> [pid_t: [CGRect]] {
+    /// The icons MenuBarAgent shows right now, by owning process, left to right; nil when it can't be read.
+    private static func visibleFrames() -> [pid_t: [CGRect]]? {
         guard let agent = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.MenuBarAgent").first,
-              let screen = NSScreen.screens.first else { return [:] }
+              let screen = NSScreen.screens.first else { return nil }
         let element = AXUIElementCreateApplication(agent.processIdentifier)
         var result: [pid_t: [CGRect]] = [:]
         // MenuBarAgent has a window per display and Space with the same icons; the first one is enough.
@@ -75,8 +76,11 @@ struct MenuBarApp: Identifiable, Equatable {
         let error = AXUIElementCopyAttributeValue(element, kAXWindowsAttribute as CFString, &windows)
         guard let window = (windows as? [AXUIElement])?.first else {
             log.notice("MenuBarAgent windows: AX error \(error.rawValue, privacy: .public)")
-            return [:]
+            return nil
         }
+        // While the menu bar is hidden (a full screen app, "Automatically hide the menu bar") the window is empty
+        // and tells nothing about the icons.
+        guard frame(window).width > 0 else { return nil }
         for group in attribute(window, kAXChildrenAttribute) as? [AXUIElement] ?? [] {
             guard let owner = (attribute(group, kAXChildrenAttribute) as? [AXUIElement])?.first,
                   (attribute(owner, kAXRoleAttribute) as? String) == kAXApplicationRole else { continue }

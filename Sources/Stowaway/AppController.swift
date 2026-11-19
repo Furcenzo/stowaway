@@ -11,12 +11,15 @@ import SwiftUI
     @Published private(set) var apps: [MenuBarApp] = []
     @Published private(set) var layout: MenuBarLayout
     @Published private(set) var paused = false
+    /// Set when hiding doesn't work; every icon is visible then and nothing is hidden until "Try Again".
+    @Published private(set) var problem: HidingProblem?
 
     private let hider = MenuBarHider()
     private let ownID = Bundle.main.bundleIdentifier ?? "io.github.furcenzo.stowaway"
     private var statusItem: NSStatusItem!
     private let popover = NSPopover()
     private var revealTask: Task<Void, Never>?
+    private var checkTask: Task<Void, Never>?
     private var known: KnownItems
     /// False until Accessibility is allowed and the icons are learned; nothing is hidden before that.
     private var started = false
@@ -77,20 +80,63 @@ import SwiftUI
     // MARK: - Hiding
 
     private func applyLayout(revealing: String? = nil) {
-        guard started else { return }
+        guard started, problem == nil else { return }
         if paused { hider.showAll(); return }
-        hider.apply(bundleIDs: layout.allowedBundleIDs(own: ownID, revealing: revealing), systemItems: layout.allowedSystemItemValues)
+        guard hider.isAvailable else { fail(.unavailable); return }
+        hider.apply(bundleIDs: layout.allowedBundleIDs(own: ownID, revealing: revealing), systemItems: layout.allowedSystemItemValues) { [weak self] error in
+            Self.log.error("hiding refused: \(error, privacy: .public)")
+            self?.fail(.refused)
+        }
+        if revealing == nil { scheduleCheck() }
+    }
+
+    /// The private API may stop working in a macOS update: check the menu bar a moment later and give up loudly.
+    private func scheduleCheck() {
+        checkTask?.cancel()
+        checkTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(1.5))
+            guard let self, !Task.isCancelled, hider.isActive, revealTask == nil,
+                  let visible = MenuBarItems.visibleCounts() else { return }
+            let allowed = Set(layout.allowedBundleIDs(own: ownID))
+            let expectedHidden = MenuBarItems.apps(known: known.counts).map(\.bundleID).filter { !allowed.contains($0) }
+            if let problem = HidingCheck.problem(visible: visible, own: ownID, expectedHidden: expectedHidden) { fail(problem) }
+        }
+    }
+
+    private func fail(_ problem: HidingProblem) {
+        guard self.problem == nil else { return }
+        Self.log.error("hiding turned off: \(String(describing: problem), privacy: .public)")
+        self.problem = problem
+        revealTask?.cancel()
+        hider.showAll()
+        popover.performClose(nil)
+        let alert = NSAlert()
+        alert.messageText = String(localized: "Stowaway can't hide icons")
+        alert.informativeText = problem.message
+        alert.alertStyle = .warning
+        NSApp.activate()
+        alert.runModal()
+    }
+
+    @objc private func tryAgain() {
+        problem = nil
+        applyLayout()
     }
 
     /// Everything is still visible: remember which apps have icons, then hide them.
     private func startHiding() {
         Task { [weak self] in
-            // Right after launch (or after a previous Stowaway quit) MenuBarAgent may still be redrawing: retry max 5 s.
+            // Right after launch (or after a previous Stowaway quit) MenuBarAgent may still be redrawing: retry for 5 s.
+            // While the menu bar can't be read at all (hidden by a full screen app), wait until it can.
             var counts: [String: Int] = [:]
-            for _ in 0..<10 {
-                counts = MenuBarItems.visibleCounts()
-                if !counts.isEmpty { break }
-                try? await Task.sleep(for: .milliseconds(500))
+            var attempts = 0
+            while counts.isEmpty, !Task.isCancelled {
+                if let visible = MenuBarItems.visibleCounts() {
+                    counts = visible
+                    attempts += 1
+                    if attempts >= 10 { break }
+                }
+                if counts.isEmpty { try? await Task.sleep(for: .milliseconds(500)) }
             }
             Self.log.notice("learned \(counts.count, privacy: .public) apps, trusted \(MenuBarItems.isTrusted, privacy: .public)")
             guard let self else { return }
@@ -177,13 +223,22 @@ import SwiftUI
     }
 
     private func refreshApps() {
-        if paused || !hider.isActive { learn(MenuBarItems.visibleCounts()) }
+        if paused || !hider.isActive, let visible = MenuBarItems.visibleCounts() { learn(visible) }
         apps = MenuBarItems.apps(known: known.counts)
     }
 
     private func makeMenu() -> NSMenu {
         refreshApps()
         let menu = NSMenu()
+        if let problem {
+            let info = NSMenuItem(title: problem.message, action: nil, keyEquivalent: "")
+            info.isEnabled = false
+            menu.addItem(info)
+            let again = NSMenuItem(title: String(localized: "Try Again"), action: #selector(tryAgain), keyEquivalent: "")
+            again.target = self
+            menu.addItem(again)
+            menu.addItem(.separator())
+        }
         let keep = NSMenuItem(title: String(localized: "Keep in Menu Bar"), action: nil, keyEquivalent: "")
         let keepMenu = NSMenu()
         for app in apps {
@@ -242,6 +297,17 @@ import SwiftUI
     @objc private func openAccessibilitySettings() {
         MenuBarItems.requestTrust()
         NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
+    }
+}
+
+extension HidingProblem {
+    var message: String {
+        switch self {
+        case .unavailable: String(localized: "This version of macOS doesn't let Stowaway hide icons. All icons stay visible.")
+        case .refused: String(localized: "macOS refused to hide the icons. All icons are visible again.")
+        case .ownIconHidden: String(localized: "Move Stowaway to the Applications folder, otherwise macOS hides its own icon too. All icons are visible again.")
+        case .notHidden: String(localized: "macOS didn't hide the icons. All icons are visible again.")
+        }
     }
 }
 

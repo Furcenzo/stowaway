@@ -21,7 +21,8 @@ import os
     var isActive: Bool { assertion != nil }
 
     /// Keeps only `bundleIDs` and `systemItems` (MBSystemItemIdentifier raw values) in the menu bar.
-    func apply(bundleIDs: [String], systemItems: [Int]) {
+    /// `onError` runs on the main actor when macOS refuses the request.
+    func apply(bundleIDs: [String], systemItems: [Int], onError: @escaping @MainActor (String) -> Void) {
         guard isAvailable,
               let configClass = NSClassFromString("MBAssessmentModeConfiguration"),
               let assertionClass = NSClassFromString("MBAssessmentModeAssertion") as? NSObject.Type else { return }
@@ -36,7 +37,10 @@ import os
         typealias ActivateFunction = @convention(c) (AnyObject, Selector, AnyObject, @escaping @convention(block) @Sendable (NSError?) -> Void) -> Void
         unsafeBitCast(class_getMethodImplementation(assertionClass, activateSelector), to: ActivateFunction.self)(
             newAssertion, activateSelector, config) { error in
-            if let error { Self.log.error("activate failed: \(error, privacy: .public)") }
+            guard let error else { return }
+            Self.log.error("activate failed: \(error, privacy: .public)")
+            let description = error.localizedDescription
+            Task { @MainActor in onError(description) }
         }
         // The new assertion first, then drop the old one, so icons don't flash in between.
         let old = assertion

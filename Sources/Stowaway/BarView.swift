@@ -9,7 +9,10 @@ struct BarView: View {
 
     var body: some View {
         Group {
-            if !MenuBarItems.isTrusted {
+            if let problem = controller.problem {
+                Text(problem.message)
+                    .frame(maxWidth: 260)
+            } else if !MenuBarItems.isTrusted {
                 Text("Stowaway needs Accessibility to open hidden icons.")
                     .frame(maxWidth: 260)
             } else if controller.hiddenApps.isEmpty {
