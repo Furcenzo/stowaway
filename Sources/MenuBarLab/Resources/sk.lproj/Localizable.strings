@@ -1,0 +1,3 @@
+/* Slovak translations: key = the English text in the code (see CLAUDE.md → Localization). Sorted alphabetically. */
+"Hello!" = "Ahoj!";
+"Version %@" = "Verzia %@";
