@@ -17,6 +17,8 @@ import SwiftUI
     private let popover = NSPopover()
     private var revealTask: Task<Void, Never>?
     private var known: KnownItems
+    /// False until Accessibility is allowed and the icons are learned; nothing is hidden before that.
+    private var started = false
     private static let layoutKey = "layout"
     private static let knownKey = "knownItems"
 
@@ -47,10 +49,16 @@ import SwiftUI
         statusItem.button?.sendAction(on: [.leftMouseUp, .rightMouseUp])
         popover.behavior = .transient
         popover.contentViewController = NSHostingController(rootView: BarView(controller: self))
-        if !MenuBarItems.isTrusted { MenuBarItems.requestTrust() }
-        // Everything is still visible at launch: remember which apps have icons before hiding them.
-        learn(MenuBarItems.visibleCounts())
-        applyLayout()
+        if MenuBarItems.isTrusted {
+            startHiding()
+        } else {
+            // Without Accessibility the icons can't be learned (or opened later), so hide nothing until it's allowed.
+            MenuBarItems.requestTrust()
+            Task { [weak self] in
+                while !MenuBarItems.isTrusted { try? await Task.sleep(for: .seconds(2)) }
+                self?.startHiding()
+            }
+        }
         NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didLaunchApplicationNotification, object: nil, queue: .main) { [weak self] note in
             guard let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
@@ -67,8 +75,16 @@ import SwiftUI
     // MARK: - Hiding
 
     private func applyLayout(revealing: String? = nil) {
+        guard started else { return }
         if paused { hider.showAll(); return }
         hider.apply(bundleIDs: layout.allowedBundleIDs(own: ownID, revealing: revealing), systemItems: layout.allowedSystemItemValues)
+    }
+
+    /// Everything is still visible: remember which apps have icons, then hide them.
+    private func startHiding() {
+        started = true
+        learn(MenuBarItems.visibleCounts())
+        applyLayout()
     }
 
     private func learn(_ counts: [String: Int]) {
@@ -78,7 +94,7 @@ import SwiftUI
 
     /// A newly launched app's icon is hidden right away, so show it for a moment to learn whether it has one.
     private func probe(bundleID: String, pid: pid_t) {
-        guard !paused, known.count(of: bundleID) == 0, !layout.isPinned(bundleID), bundleID != ownID else { return }
+        guard started, !paused, known.count(of: bundleID) == 0, !layout.isPinned(bundleID), bundleID != ownID else { return }
         Task { [weak self] in
             try? await Task.sleep(for: .seconds(3)) // apps add their icon a moment after launch
             guard let self, revealTask == nil, !paused else { return }
