@@ -21,7 +21,7 @@ Stowaway icon. Built because the window-based technique of Ice and Thaw 2 no lon
    screen mirroring, Control Center). Quitting or crashing restores all icons. *Done.*
 2. **Bar** – left click on the Stowaway icon shows the hidden apps (app icons, no Screen Recording needed).
    A click allows the app for a moment, clicks its real icon (CGEvent, needs Accessibility) and hides it again
-   when its menu closes. *Done; check that icons don't flicker.*
+   when its menu closes. *Done; no flicker (checked by the user).*
 3. **List** – which apps have icons: learned from MenuBarAgent while visible (at launch, when opened, and by
    briefly showing newly launched apps). *Done.*
 4. **Settings** – right-click menu: keep apps/system items in the menu bar, show all, quit. *Done.*
