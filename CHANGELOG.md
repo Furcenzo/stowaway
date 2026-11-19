@@ -5,6 +5,10 @@ version into the GitHub Release notes, so add a section before publishing.
 
 ## Unreleased
 
+## 0.1.1
+
+- New app icon: icons dropping from the menu bar into a suitcase.
+
 ## 0.1.0
 
 - First version for macOS 27: hides the menu bar icons of all apps except the ones you keep, and opens them
