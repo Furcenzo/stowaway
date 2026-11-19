@@ -41,7 +41,7 @@ import SwiftUI
     func start() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         statusItem.autosaveName = "Stowaway"
-        statusItem.button?.image = NSImage(systemSymbolName: "menubar.rectangle", accessibilityDescription: "Stowaway")
+        statusItem.button?.image = NSImage(systemSymbolName: "suitcase", accessibilityDescription: "Stowaway")
         statusItem.button?.target = self
         statusItem.button?.action = #selector(statusItemClicked)
         statusItem.button?.sendAction(on: [.leftMouseUp, .rightMouseUp])
