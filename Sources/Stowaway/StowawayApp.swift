@@ -17,6 +17,11 @@ struct StowawayApp: App {
     private let controller = AppController()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        if let folder = ProcessInfo.processInfo.environment["STOWAWAY_SNAPSHOT"] {
+            Snapshot.render(controller: controller, to: URL(fileURLWithPath: folder))
+            NSApp.terminate(nil)
+            return
+        }
         controller.start()
     }
 

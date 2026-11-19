@@ -5,6 +5,8 @@ version into the GitHub Release notes, so add a section before publishing.
 
 ## Unreleased
 
+## 0.1.0
+
 - First version for macOS 27: hides the menu bar icons of all apps except the ones you keep, and opens them
   from a bar under the Stowaway icon.
 - Reorder the bar's icons by drag and drop; hover for the app's name.

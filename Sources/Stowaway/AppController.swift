@@ -13,6 +13,8 @@ import SwiftUI
     @Published private(set) var paused = false
     /// Set when hiding doesn't work; every icon is visible then and nothing is hidden until "Try Again".
     @Published private(set) var problem: HidingProblem?
+    /// Screenshots: the bar shows sample apps and nothing touches the real menu bar.
+    private(set) var isSample = false
 
     private let hider = MenuBarHider()
     private let ownID = Bundle.main.bundleIdentifier ?? "io.github.furcenzo.stowaway"
@@ -82,6 +84,11 @@ import SwiftUI
             let pid = app.processIdentifier
             MainActor.assumeIsolated { self?.probe(bundleID: id, pid: pid) }
         }
+    }
+
+    func showSample(_ apps: [MenuBarApp]) {
+        isSample = true
+        self.apps = apps
     }
 
     func stop() {

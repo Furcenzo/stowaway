@@ -10,6 +10,13 @@ icons that don't fit simply disappear behind it.
 
 Available in English and Slovak (follows the macOS language setting).
 
+<p align="center">
+  <img src="Assets/screenshots/bar-light.png" alt="The Stowaway bar with the icons of hidden apps (sample apps)" width="49%">
+  <img src="Assets/screenshots/bar-dark.png" alt="The same bar in dark mode" width="49%">
+</p>
+
+The screenshots show sample apps; they are drawn by the app itself (`scripts/screenshots.sh`).
+
 > **Early version.** Stowaway relies on a private macOS API (see [How it works](#how-it-works)), so a macOS update
 > can break it. When hiding stops working, Stowaway shows every icon again and tells you why.
 
@@ -47,7 +54,10 @@ Limits that follow from this:
 
 ## Download
 
-There is no release yet – build it from source (below) and copy `Stowaway Dev.app` to /Applications.
+Install it with [Homebrew](https://brew.sh): `brew install --cask furcenzo/tap/stowaway`, or download the zip
+from [Releases](https://github.com/Furcenzo/stowaway/releases) and move `Stowaway.app` to **/Applications**.
+The app is not notarized by Apple: on the first launch open **System Settings → Privacy & Security** and click
+**Open Anyway**. Then allow Accessibility when Stowaway asks for it; it hides nothing until then.
 
 ## Building
 

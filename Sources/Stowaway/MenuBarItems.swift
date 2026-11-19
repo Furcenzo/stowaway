@@ -11,8 +11,12 @@ struct MenuBarApp: Identifiable, Equatable {
     let name: String
     let pid: pid_t
     let itemCount: Int
+    /// Icon of a sample app (screenshots); real apps use their running app's icon.
+    var sampleIcon: NSImage?
     var id: String { bundleID }
-    var icon: NSImage { NSRunningApplication(processIdentifier: pid)?.icon ?? NSImage(systemSymbolName: "app", accessibilityDescription: nil)! }
+    var icon: NSImage {
+        sampleIcon ?? NSRunningApplication(processIdentifier: pid)?.icon ?? NSImage(systemSymbolName: "app", accessibilityDescription: nil)!
+    }
 }
 
 /// Reads the menu bar through Accessibility. In macOS 27 every icon is drawn by MenuBarAgent in one window;

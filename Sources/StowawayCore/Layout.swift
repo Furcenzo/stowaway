@@ -34,7 +34,7 @@ public struct MenuBarLayout: Codable, Equatable, Sendable {
         barOrder = try container.decodeIfPresent([String].self, forKey: .barOrder) ?? []
     }
 
-    public static let `default` = MenuBarLayout(pinnedBundleIDs: ["eu.exelban.Stats"], systemItems: [.clock, .controlCenter])
+    public static let `default` = MenuBarLayout(pinnedBundleIDs: [], systemItems: [.clock, .controlCenter])
 
     public func isPinned(_ bundleID: String) -> Bool { pinnedBundleIDs.contains(bundleID) }
 

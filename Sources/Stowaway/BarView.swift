@@ -12,7 +12,7 @@ struct BarView: View {
     /// Index of the tile in front of which the dragged app would land (tiles.count = at the end).
     @State private var insertion: Int?
 
-    private static let tileSize: CGFloat = 30
+    static let tileSize: CGFloat = 30
     private static let spacing: CGFloat = 4
 
     /// One tile per icon: an app with several icons has several tiles.
@@ -25,7 +25,7 @@ struct BarView: View {
             if let problem = controller.problem {
                 Text(problem.message)
                     .frame(maxWidth: 260)
-            } else if !MenuBarItems.isTrusted {
+            } else if !controller.isSample && !MenuBarItems.isTrusted {
                 Text("Stowaway needs Accessibility to open hidden icons.")
                     .frame(maxWidth: 260)
             } else if controller.hiddenApps.isEmpty {
@@ -65,25 +65,30 @@ struct BarView: View {
         })
     }
 
+    /// The icon of one tile (also drawn alone for the screenshots, where buttons don't render).
+    static func tile(_ app: MenuBarApp, index: Int) -> some View {
+        Image(nsImage: app.icon)
+            .resizable()
+            .frame(width: 22, height: 22)
+            .overlay(alignment: .bottomTrailing) {
+                if app.itemCount > 1 {
+                    Text(verbatim: "\(index + 1)")
+                        .font(.system(size: 8, weight: .bold))
+                        .padding(1)
+                        .background(.background, in: Circle())
+                }
+            }
+            .padding(4)
+            .frame(width: tileSize, height: tileSize)
+            .contentShape(Rectangle())
+    }
+
     private func tileView(_ app: MenuBarApp, index: Int) -> some View {
         Button {
             Tooltip.shared.hide()
             controller.open(app, item: index)
         } label: {
-            Image(nsImage: app.icon)
-                .resizable()
-                .frame(width: 22, height: 22)
-                .overlay(alignment: .bottomTrailing) {
-                    if app.itemCount > 1 {
-                        Text(verbatim: "\(index + 1)")
-                            .font(.system(size: 8, weight: .bold))
-                            .padding(1)
-                            .background(.background, in: Circle())
-                    }
-                }
-                .padding(4)
-                .frame(width: Self.tileSize, height: Self.tileSize)
-                .contentShape(Rectangle())
+            Self.tile(app, index: index)
         }
         .buttonStyle(.plain)
         .opacity(dragged == app.bundleID && insertion != nil ? 0.4 : 1)
