@@ -41,6 +41,15 @@ struct BarView: View {
                                     .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
+                            // Drag an icon onto another one to put it in that one's place.
+                            .draggable(app.bundleID) {
+                                Image(nsImage: app.icon).resizable().frame(width: 22, height: 22)
+                            }
+                            .dropDestination(for: String.self) { ids, _ in
+                                guard let id = ids.first else { return false }
+                                controller.moveInBar(id, onto: app.bundleID)
+                                return true
+                            }
                             .onHover { inside in
                                 if inside { Tooltip.shared.show(app.name) } else { Tooltip.shared.hide() }
                             }

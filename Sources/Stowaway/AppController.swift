@@ -27,7 +27,20 @@ import SwiftUI
     private static let layoutKey = "layout"
     private static let knownKey = "knownItems"
 
-    var hiddenApps: [MenuBarApp] { apps.filter { !layout.isPinned($0.bundleID) } }
+    /// The apps shown in the bar, in the user's order.
+    var hiddenApps: [MenuBarApp] {
+        let hidden = apps.filter { !layout.isPinned($0.bundleID) }
+        let byID = Dictionary(uniqueKeysWithValues: hidden.map { ($0.bundleID, $0) })
+        return layout.sortedForBar(hidden.map(\.bundleID)).compactMap { byID[$0] }
+    }
+
+    /// Drag and drop in the bar: dropped on an icon to its left it goes in front of it, to its right behind it.
+    func moveInBar(_ id: String, onto target: String) {
+        let ids = hiddenApps.map(\.bundleID)
+        guard let from = ids.firstIndex(of: id), let to = ids.firstIndex(of: target), from != to else { return }
+        layout.move(id, before: from < to ? (to + 1 < ids.count ? ids[to + 1] : nil) : target, among: ids)
+        persistLayout()
+    }
 
     override init() {
         if let data = UserDefaults.standard.data(forKey: Self.layoutKey),
@@ -167,8 +180,12 @@ import SwiftUI
         }
     }
 
-    private func saveLayout() {
+    private func persistLayout() {
         if let data = try? JSONEncoder().encode(layout) { UserDefaults.standard.set(data, forKey: Self.layoutKey) }
+    }
+
+    private func saveLayout() {
+        persistLayout()
         applyLayout()
     }
 

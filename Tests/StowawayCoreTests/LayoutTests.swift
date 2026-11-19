@@ -35,3 +35,32 @@ import Testing
         #expect(try JSONDecoder().decode(MenuBarLayout.self, from: data) == .default)
     }
 }
+
+@Suite struct BarOrderTests {
+    @Test func unknownAppsFollowTheOrderedOnes() {
+        let layout = MenuBarLayout(pinnedBundleIDs: [], systemItems: [], barOrder: ["c", "x", "a"])
+        #expect(layout.sortedForBar(["a", "b", "c"]) == ["c", "a", "b"])
+    }
+
+    @Test func moveBeforeTargetAndToTheEnd() {
+        var layout = MenuBarLayout(pinnedBundleIDs: [], systemItems: [])
+        layout.move("c", before: "a", among: ["a", "b", "c"])
+        #expect(layout.sortedForBar(["a", "b", "c"]) == ["c", "a", "b"])
+        layout.move("c", before: nil, among: ["a", "b", "c"])
+        #expect(layout.sortedForBar(["a", "b", "c"]) == ["a", "b", "c"])
+    }
+
+    @Test func appsNotRunningKeepTheirPlace() {
+        var layout = MenuBarLayout(pinnedBundleIDs: [], systemItems: [], barOrder: ["a", "gone", "b"])
+        layout.move("b", before: "a", among: ["a", "b"])
+        #expect(layout.barOrder.contains("gone"))
+        #expect(layout.sortedForBar(["a", "b"]) == ["b", "a"])
+    }
+
+    @Test func oldSettingsWithoutBarOrderStillLoad() throws {
+        let json = #"{"pinnedBundleIDs":["s"],"systemItems":[2]}"#.data(using: .utf8)!
+        let layout = try JSONDecoder().decode(MenuBarLayout.self, from: json)
+        #expect(layout.pinnedBundleIDs == ["s"])
+        #expect(layout.barOrder.isEmpty)
+    }
+}
