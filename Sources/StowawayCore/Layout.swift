@@ -9,7 +9,7 @@ public enum SystemItem: Int, CaseIterable, Codable, Sendable {
     case battery = 0, bluetooth, clock, displays, keyboard, volume, wifi, screenMirroring, controlCenter
 }
 
-/// What stays in the menu bar. Everything else is hidden and reachable from the MenuBarLab bar.
+/// What stays in the menu bar. Everything else is hidden and reachable from the Stowaway bar.
 public struct MenuBarLayout: Codable, Equatable, Sendable {
     /// Apps whose icons stay in the menu bar.
     public var pinnedBundleIDs: [String]

@@ -1,9 +1,9 @@
-# MenuBarLab – notes for Claude Code
+# Stowaway – notes for Claude Code
 
 Native macOS app (Swift 6, SwiftUI, Swift Package Manager, macOS 27+).
-`Sources/MenuBarLabCore` = pure logic, no UI (tested in `Tests/MenuBarLabCoreTests`); `Sources/MenuBarLab` = the app.
+`Sources/StowawayCore` = pure logic, no UI (tested in `Tests/StowawayCoreTests`); `Sources/Stowaway` = the app.
 
-Build: `swift build`, tests: `swift test`, app bundle: `./scripts/build-app.sh` → `build/MenuBarLab Dev.app`,
+Build: `swift build`, tests: `swift test`, app bundle: `./scripts/build-app.sh` → `build/Stowaway Dev.app`,
 build + restart: `./scripts/run.sh [sk|en]`.
 
 ## Shared scripts (mac-app-kit)
@@ -13,9 +13,9 @@ are copies from mac-app-kit (`../mac-app-kit`, shared with the author's other Ma
 change them in the kit and run its `./sync.sh` (`./sync.sh --check` lists differences). The settings of this
 app (name, bundle ID, repository, cask…) are in `app.conf`.
 
-**Development builds are "MenuBarLab Dev"** (`build/MenuBarLab Dev.app`, bundle ID `io.github.furcenzo.menubarlab.dev`, the
-default of `build-app.sh`); only `release.sh` and `install-local.sh` build the real `MenuBarLab.app` with
-`io.github.furcenzo.menubarlab` and they delete their staging copies afterwards. Reason: the login item, Spotlight and
+**Development builds are "Stowaway Dev"** (`build/Stowaway Dev.app`, bundle ID `io.github.furcenzo.stowaway.dev`, the
+default of `build-app.sh`); only `release.sh` and `install-local.sh` build the real `Stowaway.app` with
+`io.github.furcenzo.stowaway` and they delete their staging copies afterwards. Reason: the login item, Spotlight and
 LaunchServices pick an app by bundle ID and file name.
 
 App icon: `Assets/AppIcon.icns` + `AppIcon.png`, drawn by `scripts/icon/AppIcon.swift` – regenerate both with
@@ -24,7 +24,7 @@ App icon: `Assets/AppIcon.icns` + `AppIcon.png`, drawn by `scripts/icon/AppIcon.
 ## Code signing and permissions
 
 macOS ties privacy permissions to the code signature, so development builds are signed with the local
-self-signed certificate **"MenuBarLab Local Dev"** (`scripts/build-app.sh` uses it automatically when it
+self-signed certificate **"Stowaway Local Dev"** (`scripts/build-app.sh` uses it automatically when it
 exists, otherwise signs ad-hoc with a warning). The certificate is created once by the user with
 `./scripts/setup-dev-signing.sh` – it needs the login password, so never run it for the user without asking;
 give them the command instead.
@@ -35,7 +35,7 @@ Every change that adds or changes a user-facing text must keep **both languages*
 
 - **Code contains English only.** The English text is the localization key. Never write Slovak
   (or any other language) into string literals in `Sources/` – the check fails on Slovak diacritics.
-- **Slovak goes to** `Sources/MenuBarLab/Resources/sk.lproj/Localizable.strings` (key = the English text,
+- **Slovak goes to** `Sources/Stowaway/Resources/sk.lproj/Localizable.strings` (key = the English text,
   exactly as in code, including punctuation and `…`). Keep the file sorted alphabetically (case-insensitive).
   `en.lproj` stays empty on purpose.
 - Interpolated values become format specifiers in the key: `Text("Delete \(name)?")` →
@@ -74,4 +74,4 @@ asked for it.
 - README, CLAUDE.md, commit messages and code comments are in English.
 - Commits are authored by `Furcenzo <60021487+Furcenzo@users.noreply.github.com>` (set in this repository's
   git config).
-- Bundle ID is `io.github.furcenzo.menubarlab`.
+- Bundle ID is `io.github.furcenzo.stowaway`.

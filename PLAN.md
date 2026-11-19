@@ -1,7 +1,7 @@
-# MenuBarLab – plan
+# Stowaway – plan
 
 A menu bar manager for macOS 27: keep only the icons you want in the menu bar, open the others from a bar under the
-MenuBarLab icon. Built because the window-based technique of Ice and Thaw 2 no longer works on macOS 27.
+Stowaway icon. Built because the window-based technique of Ice and Thaw 2 no longer works on macOS 27.
 
 ## How macOS 27 changed the menu bar (verified on 27.2.1)
 
@@ -19,7 +19,7 @@ MenuBarLab icon. Built because the window-based technique of Ice and Thaw 2 no l
 1. **Hiding per app** – private `MBAssessmentModeAssertion` (MenuBarClientCore) with an allow-list of bundle IDs
    and system items (`MBSystemItemIdentifier`: battery, Bluetooth, clock, displays, keyboard, sound, Wi-Fi,
    screen mirroring, Control Center). Quitting or crashing restores all icons. *Done.*
-2. **Bar** – left click on the MenuBarLab icon shows the hidden apps (app icons, no Screen Recording needed).
+2. **Bar** – left click on the Stowaway icon shows the hidden apps (app icons, no Screen Recording needed).
    A click allows the app for a moment, clicks its real icon (CGEvent, needs Accessibility) and hides it again
    when its menu closes. *Done; check that icons don't flicker.*
 3. **List** – which apps have icons: learned from MenuBarAgent while visible (at launch, when opened, and by
@@ -30,8 +30,8 @@ MenuBarLab icon. Built because the window-based technique of Ice and Thaw 2 no l
 ## Limits
 
 - Per app, not per icon: an app with several icons (Stats) is either all visible or all hidden.
-- MenuBarLab must run from /Applications, otherwise macOS hides its own icon too (dev builds are copied to
-  `/Applications/MenuBarLab Dev.app` for testing).
+- Stowaway must run from /Applications, otherwise macOS hides its own icon too (dev builds are copied to
+  `/Applications/Stowaway Dev.app` for testing).
 - Only the nine system items above can stay; Focus, Siri, Spotlight and others are hidden whenever hiding is on.
 - The bar shows app icons, not the live icon (that would need Screen Recording).
 

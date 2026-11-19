@@ -3,7 +3,7 @@
 
 import SwiftUI
 
-/// The bar under the MenuBarLab icon: one button per hidden menu bar icon.
+/// The bar under the Stowaway icon: one button per hidden menu bar icon.
 struct BarView: View {
     @ObservedObject var controller: AppController
     /// Name of the app under the mouse, shown below the icons (tooltips don't appear in a popover of a background app).
@@ -12,7 +12,7 @@ struct BarView: View {
     var body: some View {
         Group {
             if !MenuBarItems.isTrusted {
-                Text("MenuBarLab needs Accessibility to open hidden icons.")
+                Text("Stowaway needs Accessibility to open hidden icons.")
                     .frame(maxWidth: 260)
             } else if controller.hiddenApps.isEmpty {
                 Text("No hidden icons")

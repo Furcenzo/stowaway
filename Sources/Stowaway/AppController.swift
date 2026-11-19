@@ -2,17 +2,17 @@
 // Copyright (C) 2026 Furcenzo
 
 import AppKit
-import MenuBarLabCore
+import StowawayCore
 import SwiftUI
 
-/// The MenuBarLab icon: left click opens the bar with the hidden icons, right click the menu.
+/// The Stowaway icon: left click opens the bar with the hidden icons, right click the menu.
 @MainActor final class AppController: NSObject, ObservableObject {
     @Published private(set) var apps: [MenuBarApp] = []
     @Published private(set) var layout: MenuBarLayout
     @Published private(set) var paused = false
 
     private let hider = MenuBarHider()
-    private let ownID = Bundle.main.bundleIdentifier ?? "io.github.furcenzo.menubarlab"
+    private let ownID = Bundle.main.bundleIdentifier ?? "io.github.furcenzo.stowaway"
     private var statusItem: NSStatusItem!
     private let popover = NSPopover()
     private var revealTask: Task<Void, Never>?
@@ -40,8 +40,8 @@ import SwiftUI
 
     func start() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        statusItem.autosaveName = "MenuBarLab"
-        statusItem.button?.image = NSImage(systemSymbolName: "menubar.rectangle", accessibilityDescription: "MenuBarLab")
+        statusItem.autosaveName = "Stowaway"
+        statusItem.button?.image = NSImage(systemSymbolName: "menubar.rectangle", accessibilityDescription: "Stowaway")
         statusItem.button?.target = self
         statusItem.button?.action = #selector(statusItemClicked)
         statusItem.button?.sendAction(on: [.leftMouseUp, .rightMouseUp])
@@ -189,7 +189,7 @@ import SwiftUI
             menu.addItem(access)
         }
         menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: String(localized: "Quit MenuBarLab"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        menu.addItem(NSMenuItem(title: String(localized: "Quit Stowaway"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         return menu
     }
 

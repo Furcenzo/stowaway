@@ -9,7 +9,7 @@ import os
 /// While an assertion is active, only the allowed apps and system items are drawn in the menu bar.
 /// Invalidating it, quitting or crashing restores every icon (macOS drops the assertion with the connection).
 @MainActor final class MenuBarHider {
-    nonisolated private static let log = Logger(subsystem: "io.github.furcenzo.menubarlab", category: "hider")
+    nonisolated private static let log = Logger(subsystem: "io.github.furcenzo.stowaway", category: "hider")
     private static let loaded = dlopen("/System/Library/PrivateFrameworks/MenuBarClientCore.framework/MenuBarClientCore", RTLD_NOW) != nil
 
     private var assertion: NSObject?

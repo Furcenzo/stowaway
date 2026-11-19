@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Furcenzo
 
 import Testing
-@testable import MenuBarLabCore
+@testable import StowawayCore
 
 @Suite struct KnownItemsTests {
     @Test func learnKeepsAppsThatAreNotVisibleNow() {

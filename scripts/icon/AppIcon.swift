@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Furcenzo
 //
-// Draws the MenuBarLab app icon as a 1024 × 1024 PNG. Placeholder from mac-app-kit: the first letter of the
+// Draws the Stowaway app icon as a 1024 × 1024 PNG. Placeholder from mac-app-kit: the first letter of the
 // name on a blue rounded square – replace the drawing with the real icon.
 // Run via scripts/make-icon.sh (`swift scripts/icon/AppIcon.swift <output.png>`), which also builds the .icns.
 
@@ -36,7 +36,7 @@ NSGraphicsContext.restoreGraphicsState()
 NSGradient(starting: color(0x4C8DF6), ending: color(0x1F4FB8))!.draw(in: shape, angle: -90)
 
 // The first letter of the app name.
-let letter = "M" as NSString
+let letter = "S" as NSString
 let font = NSFont.systemFont(ofSize: 520, weight: .bold)
 let attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor.white]
 let textSize = letter.size(withAttributes: attributes)

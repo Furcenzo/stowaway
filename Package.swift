@@ -5,20 +5,20 @@
 import PackageDescription
 
 let package = Package(
-    name: "MenuBarLab",
+    name: "Stowaway",
     platforms: [.macOS("27.0")],
     products: [
-        .executable(name: "MenuBarLab", targets: ["MenuBarLab"]),
+        .executable(name: "Stowaway", targets: ["Stowaway"]),
     ],
     targets: [
         // Pure logic – no UI, tested.
-        .target(name: "MenuBarLabCore"),
+        .target(name: "StowawayCore"),
         .executableTarget(
-            name: "MenuBarLab",
-            dependencies: ["MenuBarLabCore"],
+            name: "Stowaway",
+            dependencies: ["StowawayCore"],
             // Localizable.strings files are copied into the .app by scripts/build-app.sh
             exclude: ["Resources"]
         ),
-        .testTarget(name: "MenuBarLabCoreTests", dependencies: ["MenuBarLabCore"]),
+        .testTarget(name: "StowawayCoreTests", dependencies: ["StowawayCore"]),
     ]
 )

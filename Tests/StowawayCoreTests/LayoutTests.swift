@@ -3,7 +3,7 @@
 
 import Foundation
 import Testing
-@testable import MenuBarLabCore
+@testable import StowawayCore
 
 @Suite struct LayoutTests {
     @Test func allowListStartsWithOwnAppAndHasNoDuplicates() {

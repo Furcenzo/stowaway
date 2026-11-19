@@ -5,7 +5,7 @@ import AppKit
 import SwiftUI
 
 @main
-struct MenuBarLabApp: App {
+struct StowawayApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
 
     var body: some Scene {
