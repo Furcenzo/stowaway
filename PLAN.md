@@ -25,7 +25,9 @@ Stowaway icon. Built because the window-based technique of Ice and Thaw 2 no lon
 3. **List** – which apps have icons: learned from MenuBarAgent while visible (at launch, when opened, and by
    briefly showing newly launched apps). *Done.*
 4. **Settings** – right-click menu: keep apps/system items in the menu bar, show all, quit. *Done.*
-5. **Reordering by ⌘-drag** – order the pinned icons (simulated ⌘-drag, verified in the prototype). *To do.*
+5. **Order** – the icons left in the menu bar are ordered with macOS's own ⌘-drag (remembered by macOS); the bar's
+   icons are reordered by drag and drop (a line shows where the icon lands). *Done.*
+6. **Plan B safety net** – see below, step 1. *Done.*
 
 ## Limits
 
@@ -41,7 +43,8 @@ Everything depends on `MBAssessmentModeAssertion`, meant for exam (assessment) m
 it in any macOS update (Thaw 3 depends on it too).
 
 Plan B, in order:
-1. Detect it: if the classes are missing or activation fails, show all icons and tell the user (no silent breakage).
+1. Detect it: if the classes are missing, activation fails, the icons stay visible or Stowaway's own icon gets
+   hidden, show all icons and tell the user (no silent breakage). *Done* (`HidingCheck`).
 2. Fall back to macOS's own overflow: ⌘-drag the unwanted icons to the left of the overflow arrow so macOS hides them
    behind it, and open them from the bar by expanding the overflow (`AXPress` on the arrow) and clicking the icon.
 3. Last resort: System Settings → Menu Bar → "Allow in the Menu Bar" per app (no access to the hidden icons).
