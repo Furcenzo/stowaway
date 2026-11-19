@@ -34,11 +34,9 @@ import SwiftUI
         return layout.sortedForBar(hidden.map(\.bundleID)).compactMap { byID[$0] }
     }
 
-    /// Drag and drop in the bar: dropped on an icon to its left it goes in front of it, to its right behind it.
-    func moveInBar(_ id: String, onto target: String) {
-        let ids = hiddenApps.map(\.bundleID)
-        guard let from = ids.firstIndex(of: id), let to = ids.firstIndex(of: target), from != to else { return }
-        layout.move(id, before: from < to ? (to + 1 < ids.count ? ids[to + 1] : nil) : target, among: ids)
+    /// Drag and drop in the bar: puts `id` in front of `target` (nil = at the end).
+    func moveInBar(_ id: String, before target: String?) {
+        layout.move(id, before: target, among: hiddenApps.map(\.bundleID))
         persistLayout()
     }
 
