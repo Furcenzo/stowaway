@@ -16,7 +16,9 @@ import SwiftUI
     private var statusItem: NSStatusItem!
     private let popover = NSPopover()
     private var revealTask: Task<Void, Never>?
+    private var known: KnownItems
     private static let layoutKey = "layout"
+    private static let knownKey = "knownItems"
 
     var hiddenApps: [MenuBarApp] { apps.filter { !layout.isPinned($0.bundleID) } }
 
@@ -26,6 +28,12 @@ import SwiftUI
             layout = saved
         } else {
             layout = .default
+        }
+        if let data = UserDefaults.standard.data(forKey: Self.knownKey),
+           let saved = try? JSONDecoder().decode(KnownItems.self, from: data) {
+            known = saved
+        } else {
+            known = KnownItems()
         }
         super.init()
     }
@@ -40,7 +48,16 @@ import SwiftUI
         popover.behavior = .transient
         popover.contentViewController = NSHostingController(rootView: BarView(controller: self))
         if !MenuBarItems.isTrusted { MenuBarItems.requestTrust() }
+        // Everything is still visible at launch: remember which apps have icons before hiding them.
+        learn(MenuBarItems.visibleCounts())
         applyLayout()
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didLaunchApplicationNotification, object: nil, queue: .main) { [weak self] note in
+            guard let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+                  let id = app.bundleIdentifier else { return }
+            let pid = app.processIdentifier
+            MainActor.assumeIsolated { self?.probe(bundleID: id, pid: pid) }
+        }
     }
 
     func stop() {
@@ -52,6 +69,27 @@ import SwiftUI
     private func applyLayout(revealing: String? = nil) {
         if paused { hider.showAll(); return }
         hider.apply(bundleIDs: layout.allowedBundleIDs(own: ownID, revealing: revealing), systemItems: layout.allowedSystemItemValues)
+    }
+
+    private func learn(_ counts: [String: Int]) {
+        known.learn(counts)
+        if let data = try? JSONEncoder().encode(known) { UserDefaults.standard.set(data, forKey: Self.knownKey) }
+    }
+
+    /// A newly launched app's icon is hidden right away, so show it for a moment to learn whether it has one.
+    private func probe(bundleID: String, pid: pid_t) {
+        guard !paused, known.count(of: bundleID) == 0, !layout.isPinned(bundleID), bundleID != ownID else { return }
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(3)) // apps add their icon a moment after launch
+            guard let self, revealTask == nil, !paused else { return }
+            applyLayout(revealing: bundleID)
+            for _ in 0..<15 {
+                try? await Task.sleep(for: .milliseconds(100))
+                let frames = MenuBarItems.frames(of: pid)
+                if !frames.isEmpty { learn([bundleID: frames.count]); break }
+            }
+            if revealTask == nil { applyLayout() }
+        }
     }
 
     private func saveLayout() {
@@ -67,6 +105,7 @@ import SwiftUI
         revealTask?.cancel()
         revealTask = Task { [weak self] in
             guard let self else { return }
+            defer { if !Task.isCancelled { revealTask = nil } }
             if !paused && !layout.isPinned(app.bundleID) { applyLayout(revealing: app.bundleID) }
             defer { if !Task.isCancelled { applyLayout() } }
             // Wait (max 3 s) until macOS draws the icon.
@@ -78,6 +117,7 @@ import SwiftUI
                 if frames.count >= min(app.itemCount, index + 1) { break }
             }
             guard !frames.isEmpty else { NSSound.beep(); return }
+            learn([app.bundleID: frames.count])
             let before = MenuBarItems.floatingWindows(of: app.pid)
             MenuBarItems.click(frames[min(index, frames.count - 1)])
             // Keep the icon until its menu closes: wait max 2 s for the menu to appear, then max 5 min for it to close.
@@ -101,14 +141,19 @@ import SwiftUI
         } else if popover.isShown {
             popover.performClose(nil)
         } else if let button = statusItem.button {
-            apps = MenuBarItems.apps()
+            refreshApps()
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
             popover.contentViewController?.view.window?.makeKey()
         }
     }
 
+    private func refreshApps() {
+        if paused || !hider.isActive { learn(MenuBarItems.visibleCounts()) }
+        apps = MenuBarItems.apps(known: known.counts)
+    }
+
     private func makeMenu() -> NSMenu {
-        apps = MenuBarItems.apps()
+        refreshApps()
         let menu = NSMenu()
         let keep = NSMenuItem(title: String(localized: "Keep in Menu Bar"), action: nil, keyEquivalent: "")
         let keepMenu = NSMenu()

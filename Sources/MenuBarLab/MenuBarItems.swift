@@ -26,37 +26,59 @@ struct MenuBarApp: Identifiable, Equatable {
         AXIsProcessTrustedWithOptions(["AXTrustedCheckOptionPrompt": true] as CFDictionary)
     }
 
-    /// Apps with menu bar icons (each app's own AXExtrasMenuBar, which exists whether the icon is hidden or not).
-    static func apps() -> [MenuBarApp] {
+    /// Running apps with menu bar icons: the remembered ones (`known`, bundle ID → icon count) plus those that
+    /// report icons through their own AXExtrasMenuBar (many apps drop it while their icon is hidden).
+    static func apps(known: [String: Int]) -> [MenuBarApp] {
         let own = Bundle.main.bundleIdentifier
         return NSWorkspace.shared.runningApplications.compactMap { app in
             guard let id = app.bundleIdentifier, id != own, !excluded.contains(id) else { return nil }
-            let element = AXUIElementCreateApplication(app.processIdentifier)
-            AXUIElementSetMessagingTimeout(element, 0.25)
-            guard let extras = attribute(element, "AXExtrasMenuBar"),
-                  let items = attribute(extras as! AXUIElement, kAXChildrenAttribute) as? [AXUIElement], !items.isEmpty else { return nil }
-            return MenuBarApp(bundleID: id, name: app.localizedName ?? id, pid: app.processIdentifier, itemCount: items.count)
+            var count = known[id] ?? 0
+            if count == 0 {
+                let element = AXUIElementCreateApplication(app.processIdentifier)
+                AXUIElementSetMessagingTimeout(element, 0.25)
+                if let extras = attribute(element, "AXExtrasMenuBar") {
+                    count = (attribute(extras as! AXUIElement, kAXChildrenAttribute) as? [AXUIElement])?.count ?? 0
+                }
+            }
+            guard count > 0 else { return nil }
+            return MenuBarApp(bundleID: id, name: app.localizedName ?? id, pid: app.processIdentifier, itemCount: count)
         }
         .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
+    /// Bundle ID → number of icons that MenuBarAgent shows right now.
+    static func visibleCounts() -> [String: Int] {
+        var counts: [String: Int] = [:]
+        for (pid, frames) in visibleFrames() {
+            guard let id = NSRunningApplication(processIdentifier: pid)?.bundleIdentifier else { continue }
+            counts[id, default: 0] += frames.count
+        }
+        return counts
+    }
+
     /// Frames (screen coordinates, top left origin) of the icons of `pid` that MenuBarAgent shows right now, left to right.
     static func frames(of pid: pid_t) -> [CGRect] {
+        visibleFrames()[pid] ?? []
+    }
+
+    /// The icons MenuBarAgent shows right now, by owning process, left to right.
+    private static func visibleFrames() -> [pid_t: [CGRect]] {
         guard let agent = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.MenuBarAgent").first,
-              let screen = NSScreen.screens.first else { return [] }
+              let screen = NSScreen.screens.first else { return [:] }
         let element = AXUIElementCreateApplication(agent.processIdentifier)
-        var frames: [CGRect] = []
-        for window in attribute(element, kAXWindowsAttribute) as? [AXUIElement] ?? [] {
-            for group in attribute(window, kAXChildrenAttribute) as? [AXUIElement] ?? [] {
-                guard let owner = (attribute(group, kAXChildrenAttribute) as? [AXUIElement])?.first else { continue }
-                var ownerPid: pid_t = 0
-                guard AXUIElementGetPid(owner, &ownerPid) == .success, ownerPid == pid,
-                      (attribute(owner, kAXRoleAttribute) as? String) == kAXApplicationRole else { continue }
-                let frame = frame(group)
-                if frame.width > 0, frame.minX >= 0, frame.maxX <= screen.frame.width, !frames.contains(frame) { frames.append(frame) }
-            }
+        var result: [pid_t: [CGRect]] = [:]
+        // MenuBarAgent has a window per display and Space with the same icons; the first one is enough.
+        guard let window = (attribute(element, kAXWindowsAttribute) as? [AXUIElement])?.first else { return [:] }
+        for group in attribute(window, kAXChildrenAttribute) as? [AXUIElement] ?? [] {
+            guard let owner = (attribute(group, kAXChildrenAttribute) as? [AXUIElement])?.first,
+                  (attribute(owner, kAXRoleAttribute) as? String) == kAXApplicationRole else { continue }
+            var pid: pid_t = 0
+            guard AXUIElementGetPid(owner, &pid) == .success else { continue }
+            let frame = frame(group)
+            // Icons in macOS's own overflow are stacked at the overflow arrow; they still count.
+            if frame.width > 0, frame.minX >= 0, frame.maxX <= screen.frame.width { result[pid, default: []].append(frame) }
         }
-        return frames.sorted { $0.minX < $1.minX }
+        return result.mapValues { $0.sorted { $0.minX < $1.minX } }
     }
 
     /// A real mouse click in the middle of `frame`; the cursor goes back where it was.
