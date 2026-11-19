@@ -1,6 +1,6 @@
 # MenuBarLab – notes for Claude Code
 
-Native macOS app (Swift 6, SwiftUI, Swift Package Manager, macOS 15+).
+Native macOS app (Swift 6, SwiftUI, Swift Package Manager, macOS 27+).
 `Sources/MenuBarLabCore` = pure logic, no UI (tested in `Tests/MenuBarLabCoreTests`); `Sources/MenuBarLab` = the app.
 
 Build: `swift build`, tests: `swift test`, app bundle: `./scripts/build-app.sh` → `build/MenuBarLab Dev.app`,
