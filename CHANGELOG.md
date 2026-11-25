@@ -5,6 +5,8 @@ version into the GitHub Release notes, so add a section before publishing.
 
 ## Unreleased
 
+## 0.1.2
+
 - The bar under the Stowaway icon wraps into rows instead of running off the screen edge.
 - No more false "Move Stowaway to the Applications folder" warning when the menu bar is redrawn, e.g. after
   the display wakes up.
