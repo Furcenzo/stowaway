@@ -5,6 +5,8 @@ version into the GitHub Release notes, so add a section before publishing.
 
 ## Unreleased
 
+## 0.1.3
+
 - Icons of menu bar apps started while Stowaway runs show up in the bar (macOS doesn't announce the launch of
   apps without a Dock icon, so Stowaway never learned them).
 
