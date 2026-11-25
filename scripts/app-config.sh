@@ -23,6 +23,7 @@ CATEGORY="${CATEGORY:-public.app-category.utilities}"
 AGENT_APP="${AGENT_APP:-0}"                                # 1 = menu bar only, no Dock icon (LSUIElement)
 DEV_CHANNEL="${DEV_CHANNEL:-1}"                            # 1 = development builds are "<APP_NAME> Dev"
 RUN_QUITS_INSTALLED="${RUN_QUITS_INSTALLED:-0}"            # 1 = run.sh also quits the installed app
+DEV_INSTALL_DIR="${DEV_INSTALL_DIR:-}"                     # e.g. /Applications: run.sh starts the dev build from there
 DEV_IDENTITY="${DEV_IDENTITY:-$APP_NAME Local Dev}"        # local signing certificate, see setup-dev-signing.sh
 RELEASE_IDENTITY="${RELEASE_IDENTITY:-Furcenzo Release}"   # signs public releases (all apps); "-" = ad-hoc
 COPYRIGHT="${COPYRIGHT:-Copyright (C) 2026 Furcenzo. GPL-3.0-or-later.}"
@@ -37,6 +38,13 @@ APP_BUNDLE="$APP_NAME.app"                                 # the real app: relea
 # never take them for the installed app.
 DEV_APP_BUNDLE="$APP_BUNDLE"
 [[ "$DEV_CHANNEL" == "1" ]] && DEV_APP_BUNDLE="$APP_NAME Dev.app"
+# Where the development app is started from: build/, or DEV_INSTALL_DIR when set (macOS treats some apps differently
+# outside /Applications, e.g. menu bar icons). Other tools can read this too.
+DEV_APP_PATH="build/$DEV_APP_BUNDLE"
+if [[ -n "$DEV_INSTALL_DIR" ]]; then
+    [[ "$DEV_CHANNEL" == "1" ]] || { echo "app.conf: DEV_INSTALL_DIR needs DEV_CHANNEL=1 (it would replace the installed app)" >&2; exit 1; }
+    DEV_APP_PATH="$DEV_INSTALL_DIR/$DEV_APP_BUNDLE"
+fi
 LSREGISTER=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
 
 # Prints the name of the "<APP_NAME> Local Dev" certificate when it is in the keychain.

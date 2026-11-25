@@ -14,7 +14,8 @@ change them in the kit and run its `./sync.sh` (`./sync.sh --check` lists differ
 app (name, bundle ID, repository, cask…) are in `app.conf`.
 
 **Development builds are "Stowaway Dev"** (`build/Stowaway Dev.app`, bundle ID `io.github.furcenzo.stowaway.dev`, the
-default of `build-app.sh`); only `release.sh` and `install-local.sh` build the real `Stowaway.app` with
+default of `build-app.sh`; `run.sh` copies it to `/Applications/Stowaway Dev.app` and starts it from there, because
+macOS hides Stowaway's own icon outside /Applications, and quits the installed Stowaway first); only `release.sh` and `install-local.sh` build the real `Stowaway.app` with
 `io.github.furcenzo.stowaway` and they delete their staging copies afterwards. Reason: the login item, Spotlight and
 LaunchServices pick an app by bundle ID and file name.
 
