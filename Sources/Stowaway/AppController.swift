@@ -13,6 +13,8 @@ import SwiftUI
     @Published private(set) var paused = false
     /// Set when hiding doesn't work; every icon is visible then and nothing is hidden until "Try Again".
     @Published private(set) var problem: HidingProblem?
+    /// Tiles per row of the bar, so that it fits on the screen under the Stowaway icon.
+    @Published private(set) var barColumns = Int.max
     /// Screenshots: the bar shows sample apps and nothing touches the real menu bar.
     private(set) var isSample = false
 
@@ -109,15 +111,24 @@ import SwiftUI
     }
 
     /// The private API may stop working in a macOS update: check the menu bar a moment later and give up loudly.
+    /// The menu bar is read a few times over 3 s and only a problem seen every time counts: right after waking up
+    /// or a display change MenuBarAgent is still rebuilding it and a single reading can miss icons.
     private func scheduleCheck() {
         checkTask?.cancel()
         checkTask = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(1.5))
-            guard let self, !Task.isCancelled, hider.isActive, revealTask == nil,
-                  let visible = MenuBarItems.visibleCounts() else { return }
-            let allowed = Set(layout.allowedBundleIDs(own: ownID))
-            let expectedHidden = MenuBarItems.apps(known: known.counts).map(\.bundleID).filter { !allowed.contains($0) }
-            if let problem = HidingCheck.problem(visible: visible, own: ownID, expectedHidden: expectedHidden) { fail(problem) }
+            var found: HidingProblem?
+            for attempt in 0..<4 {
+                try? await Task.sleep(for: .seconds(attempt == 0 ? 1.5 : 1))
+                guard let self, !Task.isCancelled, hider.isActive, revealTask == nil,
+                      let visible = MenuBarItems.visibleCounts() else { return }
+                let allowed = Set(layout.allowedBundleIDs(own: ownID))
+                let expectedHidden = MenuBarItems.apps(known: known.counts).map(\.bundleID).filter { !allowed.contains($0) }
+                guard let problem = HidingCheck.problem(visible: visible, own: ownID, expectedHidden: expectedHidden),
+                      found == nil || found == problem else { return }
+                Self.log.notice("check \(attempt, privacy: .public): \(String(describing: problem), privacy: .public), visible \(visible.count, privacy: .public) apps")
+                found = problem
+            }
+            if let found { self?.fail(found) }
         }
     }
 
@@ -239,9 +250,19 @@ import SwiftUI
             popover.performClose(nil)
         } else if let button = statusItem.button {
             refreshApps()
+            barColumns = Self.barColumns(under: button)
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
             popover.contentViewController?.view.window?.makeKey()
         }
+    }
+
+    /// The popover is centered under the icon and macOS doesn't move it back onto the screen, so the bar may
+    /// only be as wide as twice the distance from the icon to the nearer screen edge.
+    private static func barColumns(under button: NSStatusBarButton) -> Int {
+        guard let window = button.window, let screen = window.screen ?? NSScreen.main else { return .max }
+        let center = window.frame.midX
+        let half = min(center - screen.visibleFrame.minX, screen.visibleFrame.maxX - center) - 12
+        return max(1, Int((2 * half - 2 * BarView.padding + BarView.spacing) / BarView.step))
     }
 
     private func refreshApps() {

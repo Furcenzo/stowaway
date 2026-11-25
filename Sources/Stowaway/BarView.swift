@@ -4,8 +4,8 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// The bar under the Stowaway icon: one button per hidden menu bar icon. Icons are reordered by dragging;
-/// a line between the icons shows where the dragged one lands.
+/// The bar under the Stowaway icon: one button per hidden menu bar icon, in rows when they don't fit on the
+/// screen. Icons are reordered by dragging; a line between the icons shows where the dragged one lands.
 struct BarView: View {
     @ObservedObject var controller: AppController
     @State private var dragged: String?
@@ -13,7 +13,10 @@ struct BarView: View {
     @State private var insertion: Int?
 
     static let tileSize: CGFloat = 30
-    private static let spacing: CGFloat = 4
+    static let spacing: CGFloat = 4
+    static let padding: CGFloat = 8
+    /// Distance between the starts of neighbouring tiles (and rows).
+    static let step = tileSize + spacing
 
     /// One tile per icon: an app with several icons has several tiles.
     private var tiles: [(app: MenuBarApp, index: Int)] {
@@ -35,7 +38,7 @@ struct BarView: View {
                 bar
             }
         }
-        .padding(8)
+        .padding(Self.padding)
         .onDisappear {
             Tooltip.shared.hide()
             dragged = nil
@@ -45,22 +48,31 @@ struct BarView: View {
 
     private var bar: some View {
         let tiles = tiles
-        return HStack(spacing: Self.spacing) {
-            ForEach(Array(tiles.enumerated()), id: \.offset) { _, tile in
-                tileView(tile.app, index: tile.index)
+        let columns = max(1, min(controller.barColumns, tiles.count))
+        let rows = stride(from: 0, to: tiles.count, by: columns).map { Array(tiles.indices)[$0..<min($0 + columns, tiles.count)] }
+        return VStack(alignment: .leading, spacing: Self.spacing) {
+            ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+                HStack(spacing: Self.spacing) {
+                    ForEach(row, id: \.self) { i in
+                        tileView(tiles[i].app, index: tiles[i].index)
+                    }
+                }
             }
         }
-        .overlay(alignment: .leading) {
+        .overlay(alignment: .topLeading) {
             if let insertion {
-                // In the middle of the gap in front of tile `insertion`.
-                let x = CGFloat(insertion) * (Self.tileSize + Self.spacing) - Self.spacing / 2
+                // In the middle of the gap in front of tile `insertion`; at the end of a row after its last tile.
+                let row = insertion == tiles.count ? (tiles.count - 1) / columns : insertion / columns
+                let column = insertion - row * columns
+                let x = CGFloat(column) * Self.step - Self.spacing / 2
                 RoundedRectangle(cornerRadius: 1)
                     .fill(Color.accentColor)
                     .frame(width: 2, height: Self.tileSize - 4)
-                    .offset(x: min(max(x - 1, 0), CGFloat(tiles.count) * (Self.tileSize + Self.spacing) - Self.spacing - 2))
+                    .offset(x: min(max(x - 1, 0), CGFloat(columns) * Self.step - Self.spacing - 2),
+                            y: CGFloat(row) * Self.step + 2)
             }
         }
-        .onDrop(of: [.text], delegate: BarDropDelegate(tiles: tiles, dragged: $dragged, insertion: $insertion) { id, target in
+        .onDrop(of: [.text], delegate: BarDropDelegate(tiles: tiles, columns: columns, dragged: $dragged, insertion: $insertion) { id, target in
             controller.moveInBar(id, before: target)
         })
     }
@@ -109,13 +121,16 @@ struct BarView: View {
 /// Moves the dragged app (not copies it, so there is no "+" at the cursor) to the gap under the mouse.
 private struct BarDropDelegate: DropDelegate {
     let tiles: [(app: MenuBarApp, index: Int)]
+    let columns: Int
     @Binding var dragged: String?
     @Binding var insertion: Int?
     let move: (_ id: String, _ before: String?) -> Void
 
     private func gap(at location: CGPoint) -> Int {
-        let step: CGFloat = 34 // tile + spacing
-        return min(max(Int((location.x / step).rounded()), 0), tiles.count)
+        let lastRow = (tiles.count - 1) / columns
+        let row = min(max(Int(location.y / BarView.step), 0), lastRow)
+        let column = min(max(Int((location.x / BarView.step).rounded()), 0), columns)
+        return min(row * columns + column, tiles.count)
     }
 
     func validateDrop(info: DropInfo) -> Bool { dragged != nil }

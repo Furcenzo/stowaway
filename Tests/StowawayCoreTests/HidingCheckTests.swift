@@ -11,7 +11,10 @@ import Testing
 
     @Test func missingOwnIconIsAProblem() {
         #expect(HidingCheck.problem(visible: ["stats": 6], own: "own", expectedHidden: ["a"]) == .ownIconHidden)
-        #expect(HidingCheck.problem(visible: [:], own: "own", expectedHidden: []) == .ownIconHidden)
+    }
+
+    @Test func emptyMenuBarIsNotAReading() {
+        #expect(HidingCheck.problem(visible: [:], own: "own", expectedHidden: ["a"]) == nil)
     }
 
     @Test func nothingHiddenIsAProblem() {

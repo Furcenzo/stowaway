@@ -23,6 +23,8 @@ public enum HidingCheck {
     ///   - own: Stowaway's bundle ID.
     ///   - expectedHidden: running apps with icons that should be hidden now.
     public static func problem(visible: [String: Int], own: String, expectedHidden: [String]) -> HidingProblem? {
+        // No icons at all: the menu bar is being rebuilt (after waking up, a display change), not a real reading.
+        if visible.isEmpty { return nil }
         if visible[own, default: 0] == 0 { return .ownIconHidden }
         // Only when none of them got hidden: a single app macOS keeps visible is not a reason to give up.
         if !expectedHidden.isEmpty, expectedHidden.allSatisfy({ visible[$0, default: 0] > 0 }) { return .notHidden }
