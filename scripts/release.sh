@@ -20,6 +20,13 @@ if [[ ! "$VERSION" =~ '^[0-9]+\.[0-9]+\.[0-9]+$' ]]; then
     exit 1
 fi
 TAG="v$VERSION"
+# Public builds are signed with the shared "Furcenzo Release" certificate, so macOS keeps the users' permissions
+# (Accessibility…) across updates; an ad-hoc signature changes with every build. RELEASE_IDENTITY=- signs ad-hoc.
+if [[ "$RELEASE_IDENTITY" != "-" ]] && ! release_identity >/dev/null; then
+    echo "The \"$RELEASE_IDENTITY\" certificate is missing – run scripts/setup-dev-signing.sh --release once" >&2
+    echo "(or restore it from its backup). RELEASE_IDENTITY=- builds an ad-hoc signed release instead." >&2
+    exit 1
+fi
 ZIP="build/$ZIP_NAME-$VERSION.zip"
 
 if [[ "$PUBLISH" == "--publish" ]]; then
@@ -37,8 +44,7 @@ fi
 
 swift test
 ./scripts/check-localization.sh
-# Public builds are ad-hoc signed: the local "<APP_NAME> Local Dev" certificate is only for this Mac.
-VERSION="$VERSION" UNIVERSAL=1 CHANNEL=release SIGN_IDENTITY=- OUTPUT_DIR=build/release ./scripts/build-app.sh
+VERSION="$VERSION" UNIVERSAL=1 CHANNEL=release SIGN_IDENTITY="$RELEASE_IDENTITY" OUTPUT_DIR=build/release ./scripts/build-app.sh
 
 rm -f "$ZIP"
 ditto -c -k --sequesterRsrc --keepParent "build/release/$APP_BUNDLE" "$ZIP"

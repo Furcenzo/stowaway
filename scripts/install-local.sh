@@ -3,8 +3,8 @@
 # Copyright (C) 2026 Furcenzo
 # Part of mac-app-kit (shared scripts of the Furcenzo Mac apps): change it there and run its sync.sh, not here.
 #
-# For the author's own Mac: installs a build signed with "<APP_NAME> Local Dev" into /Applications,
-# so the permissions survive updates (the public releases are ad-hoc signed and would lose them).
+# For the author's own Mac: builds the latest tag and installs it into /Applications, signed like the public
+# releases ("Furcenzo Release"), so it shares their permissions; "<APP_NAME> Local Dev" when that is missing.
 #   ./scripts/install-local.sh          version = the latest git tag (e.g. v0.1.1 → 0.1.1)
 #   ./scripts/install-local.sh 0.2.0
 #
@@ -20,10 +20,10 @@ if [[ ! "$VERSION" =~ '^[0-9]+\.[0-9]+\.[0-9]+$' ]]; then
     echo "usage: $0 [major.minor.patch]" >&2
     exit 1
 fi
-dev_identity >/dev/null \
-    || { echo "The \"$DEV_IDENTITY\" certificate is missing – run scripts/setup-dev-signing.sh first." >&2; exit 1; }
+IDENTITY="$(release_identity)" || IDENTITY="$(dev_identity)" \
+    || { echo "No signing certificate – run scripts/setup-dev-signing.sh --release first." >&2; exit 1; }
 
-VERSION="$VERSION" CHANNEL=release OUTPUT_DIR=build/install SIGN_IDENTITY="$DEV_IDENTITY" ./scripts/build-app.sh
+VERSION="$VERSION" CHANNEL=release OUTPUT_DIR=build/install SIGN_IDENTITY="$IDENTITY" ./scripts/build-app.sh
 # Quit the running app (SIGTERM, so it can clean up); the new one starts below.
 pkill -x "$EXECUTABLE" 2>/dev/null && sleep 1 || true
 rm -rf "/Applications/$APP_BUNDLE"
@@ -32,4 +32,4 @@ ditto "build/install/$APP_BUNDLE" "/Applications/$APP_BUNDLE"
 "$LSREGISTER" -u "build/install/$APP_BUNDLE" 2>/dev/null || true
 rm -rf build/install
 open "/Applications/$APP_BUNDLE"
-echo "Installed $APP_NAME $VERSION (signed with $DEV_IDENTITY) into /Applications and started it."
+echo "Installed $APP_NAME $VERSION (signed with $IDENTITY) into /Applications and started it."

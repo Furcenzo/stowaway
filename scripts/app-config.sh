@@ -24,6 +24,7 @@ AGENT_APP="${AGENT_APP:-0}"                                # 1 = menu bar only, 
 DEV_CHANNEL="${DEV_CHANNEL:-1}"                            # 1 = development builds are "<APP_NAME> Dev"
 RUN_QUITS_INSTALLED="${RUN_QUITS_INSTALLED:-0}"            # 1 = run.sh also quits the installed app
 DEV_IDENTITY="${DEV_IDENTITY:-$APP_NAME Local Dev}"        # local signing certificate, see setup-dev-signing.sh
+RELEASE_IDENTITY="${RELEASE_IDENTITY:-Furcenzo Release}"   # signs public releases (all apps); "-" = ad-hoc
 COPYRIGHT="${COPYRIGHT:-Copyright (C) 2026 Furcenzo. GPL-3.0-or-later.}"
 INFO_PLIST_EXTRA="${INFO_PLIST_EXTRA:-}"                   # extra <key>…</key><…> lines for Info.plist
 RELEASE_NOTES="${RELEASE_NOTES:-scripts/release-notes.md}"
@@ -41,4 +42,9 @@ LSREGISTER=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchSe
 # Prints the name of the "<APP_NAME> Local Dev" certificate when it is in the keychain.
 dev_identity() {
     security find-identity -p codesigning | grep -q "\"$DEV_IDENTITY\"" && print -r -- "$DEV_IDENTITY"
+}
+
+# Prints the name of the release certificate ("Furcenzo Release") when it is in the keychain.
+release_identity() {
+    security find-identity -p codesigning | grep -q "\"$RELEASE_IDENTITY\"" && print -r -- "$RELEASE_IDENTITY"
 }
