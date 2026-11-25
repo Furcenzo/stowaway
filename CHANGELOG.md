@@ -5,6 +5,9 @@ version into the GitHub Release notes, so add a section before publishing.
 
 ## Unreleased
 
+- Icons of menu bar apps started while Stowaway runs show up in the bar (macOS doesn't announce the launch of
+  apps without a Dock icon, so Stowaway never learned them).
+
 ## 0.1.2
 
 - The bar under the Stowaway icon wraps into rows instead of running off the screen edge.

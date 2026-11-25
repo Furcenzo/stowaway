@@ -24,6 +24,7 @@ import SwiftUI
     private let popover = NSPopover()
     private var revealTask: Task<Void, Never>?
     private var checkTask: Task<Void, Never>?
+    private var launchObservation: NSKeyValueObservation?
     private var known: KnownItems
     /// False until Accessibility is allowed and the icons are learned; nothing is hidden before that.
     private var started = false
@@ -79,12 +80,18 @@ import SwiftUI
                 self?.startHiding()
             }
         }
-        NSWorkspace.shared.notificationCenter.addObserver(
-            forName: NSWorkspace.didLaunchApplicationNotification, object: nil, queue: .main) { [weak self] note in
-            guard let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
-                  let id = app.bundleIdentifier else { return }
-            let pid = app.processIdentifier
-            MainActor.assumeIsolated { self?.probe(bundleID: id, pid: pid) }
+        // Not didLaunchApplicationNotification: macOS doesn't post it for apps without a Dock icon (LSUIElement),
+        // which most menu bar apps are.
+        launchObservation = NSWorkspace.shared.observe(\.runningApplications, options: [.old, .new]) { [weak self] _, change in
+            let old = Set((change.oldValue ?? []).map(\.processIdentifier))
+            let launched = (change.newValue ?? []).filter { !old.contains($0.processIdentifier) }
+                .compactMap { app in app.bundleIdentifier.map { ($0, app.processIdentifier) } }
+            guard !launched.isEmpty else { return }
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated {
+                    for (id, pid) in launched { self?.probe(bundleID: id, pid: pid) }
+                }
+            }
         }
     }
 
@@ -187,11 +194,14 @@ import SwiftUI
             try? await Task.sleep(for: .seconds(3)) // apps add their icon a moment after launch
             guard let self, revealTask == nil, !paused else { return }
             applyLayout(revealing: bundleID)
-            for _ in 0..<15 {
+            // Wait (max 3 s, as when opening an icon) until macOS draws the icon.
+            var frames: [CGRect] = []
+            for _ in 0..<30 {
                 try? await Task.sleep(for: .milliseconds(100))
-                let frames = MenuBarItems.frames(of: pid)
+                frames = MenuBarItems.frames(of: pid)
                 if !frames.isEmpty { learn([bundleID: frames.count]); break }
             }
+            Self.log.notice("probed \(bundleID, privacy: .public): \(frames.count, privacy: .public) icons")
             if revealTask == nil { applyLayout() }
         }
     }
