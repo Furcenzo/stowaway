@@ -5,6 +5,8 @@ version into the GitHub Release notes, so add a section before publishing.
 
 ## Unreleased
 
+## 0.1.5
+
 - Apps outside the Applications folder (e.g. in ~/Applications or a build folder) can be opened from the bar:
   macOS 27 keeps their icons hidden even when they are kept in the menu bar, so Stowaway shows every icon for a
   moment instead. "Keep in Menu Bar" now says so under such an app.
