@@ -4,6 +4,7 @@
 import AppKit
 import ApplicationServices
 import os
+import StowawayCore
 
 /// A running app that has at least one icon in the menu bar.
 struct MenuBarApp: Identifiable, Equatable {
@@ -13,6 +14,8 @@ struct MenuBarApp: Identifiable, Equatable {
     let itemCount: Int
     /// Icon of a sample app (screenshots); real apps use their running app's icon.
     var sampleIcon: NSImage?
+    /// False for apps outside /Applications: macOS keeps their icons hidden even when they are allowed.
+    var canKeepIcon = true
     var id: String { bundleID }
     var icon: NSImage {
         sampleIcon ?? NSRunningApplication(processIdentifier: pid)?.icon ?? NSImage(systemSymbolName: "app", accessibilityDescription: nil)!
@@ -48,7 +51,8 @@ struct MenuBarApp: Identifiable, Equatable {
                 }
             }
             guard count > 0 else { return nil }
-            return MenuBarApp(bundleID: id, name: app.localizedName ?? id, pid: app.processIdentifier, itemCount: count)
+            return MenuBarApp(bundleID: id, name: app.localizedName ?? id, pid: app.processIdentifier, itemCount: count,
+                              canKeepIcon: AppLocation.canKeepIcon(bundlePath: app.bundleURL?.path))
         }
         .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }

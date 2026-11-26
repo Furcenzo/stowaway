@@ -8,6 +8,7 @@
 "Keep in Menu Bar" = "Ponechať v menu bare";
 "Keyboard" = "Klávesnica";
 "macOS didn't hide the icons. All icons are visible again." = "macOS ikony neskryl. Všetky ikony sú znova viditeľné.";
+"macOS keeps it hidden until it's in the Applications folder" = "macOS ju nechá skrytú, kým nie je v priečinku Aplikácie";
 "macOS refused to hide the icons. All icons are visible again." = "macOS odmietol skryť ikony. Všetky ikony sú znova viditeľné.";
 "Move Stowaway to the Applications folder, otherwise macOS hides its own icon too. All icons are visible again." = "Stowaway musí byť v priečinku Aplikácie, inak macOS skryje aj jeho vlastnú ikonu. Všetky ikony sú znova viditeľné.";
 "No hidden icons" = "Žiadne skryté ikony";

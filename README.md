@@ -32,6 +32,8 @@ The screenshots show sample apps; they are drawn by the app itself (`scripts/scr
 
 - macOS 27 (tested on 27.2).
 - Stowaway must run from the **Applications** folder, otherwise macOS hides its own icon too.
+- The same goes for the apps you keep in the menu bar: macOS 27 keeps the icon of an app outside **/Applications**
+  hidden even then. Stowaway marks such apps in "Keep in Menu Bar" and still opens them from the bar.
 - **Accessibility** permission (System Settings → Privacy & Security → Accessibility): to see which apps have
   icons and to click them. Screen Recording is not needed.
 

@@ -40,9 +40,10 @@ import SwiftUI
     private static let layoutKey = "layout"
     private static let knownKey = "knownItems"
 
-    /// The apps shown in the bar, in the user's order.
+    /// The apps shown in the bar, in the user's order. Kept apps outside /Applications are hidden anyway (macOS),
+    /// so they stay in the bar too.
     var hiddenApps: [MenuBarApp] {
-        let hidden = apps.filter { !layout.isPinned($0.bundleID) }
+        let hidden = apps.filter { !layout.isPinned($0.bundleID) || !$0.canKeepIcon }
         let byID = Dictionary(uniqueKeysWithValues: hidden.map { ($0.bundleID, $0) })
         return layout.sortedForBar(hidden.map(\.bundleID)).compactMap { byID[$0] }
     }
@@ -271,6 +272,12 @@ import SwiftUI
             // Helpers and XPC services (no UI at all) can't have an icon: don't touch the menu bar for them.
             guard let app = NSRunningApplication(processIdentifier: pid), !app.isTerminated,
                   app.activationPolicy != .prohibited else { return }
+            // macOS doesn't show the icon of an app outside /Applications even when it's allowed, so probing can't
+            // see it; it's learned when Stowaway starts or while every icon is shown.
+            guard AppLocation.canKeepIcon(bundlePath: app.bundleURL?.path) else {
+                Self.log.notice("not probing \(bundleID, privacy: .public): outside /Applications")
+                return
+            }
             applyLayout(revealing: bundleID)
             // Wait (max 3 s, as when opening an icon) until macOS draws the icon.
             var frames: [CGRect] = []
@@ -302,7 +309,10 @@ import SwiftUI
         revealTask = Task { [weak self] in
             guard let self else { return }
             defer { if !Task.isCancelled { revealTask = nil } }
-            if !paused && !layout.isPinned(app.bundleID) { applyLayout(revealing: app.bundleID) }
+            if !paused {
+                // macOS shows an app outside /Applications only when nothing is hidden: show every icon for a moment.
+                if !app.canKeepIcon { hider.showAll() } else if !layout.isPinned(app.bundleID) { applyLayout(revealing: app.bundleID) }
+            }
             defer { if !Task.isCancelled { applyLayout() } }
             // Wait (max 3 s) until macOS draws the icon.
             var frames: [CGRect] = []
@@ -379,6 +389,9 @@ import SwiftUI
             item.state = layout.isPinned(app.bundleID) ? .on : .off
             item.image = app.icon
             item.image?.size = NSSize(width: 16, height: 16)
+            if !app.canKeepIcon {
+                item.subtitle = String(localized: "macOS keeps it hidden until it's in the Applications folder")
+            }
             keepMenu.addItem(item)
         }
         keepMenu.addItem(.separator())
