@@ -5,6 +5,8 @@ version into the GitHub Release notes, so add a section before publishing.
 
 ## Unreleased
 
+## 0.1.4
+
 - No more "macOS refused to hide the icons" after unlocking the Mac: Stowaway itself cancelled its request when
   several apps started at once. After waking up or unlocking it now checks that hiding works and fixes it by itself, and when
   macOS refuses, it tries again a few times before showing every icon.
