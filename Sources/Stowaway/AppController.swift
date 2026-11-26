@@ -25,6 +25,14 @@ import SwiftUI
     private var revealTask: Task<Void, Never>?
     private var checkTask: Task<Void, Never>?
     private var launchObservation: NSKeyValueObservation?
+    /// Probes run one after another: overlapping ones would keep replacing each other's assertion.
+    private var probeTask: Task<Void, Never>?
+    /// Attempts to turn hiding on again before giving up with an alert.
+    private var recovery = Recovery()
+    private var recoveryTask: Task<Void, Never>?
+    private var wakeTask: Task<Void, Never>?
+    /// The alert was shown for the current problem; automatic attempts after waking up don't show it again.
+    private var alerted = false
     private var known: KnownItems
     /// False until Accessibility is allowed and the icons are learned; nothing is hidden before that.
     private var started = false
@@ -93,6 +101,47 @@ import SwiftUI
                 }
             }
         }
+        observeWake()
+    }
+
+    /// After waking up or unlocking, MenuBarAgent rebuilds the menu bar and may drop the assertion
+    /// (a burst of apps launching at that moment used to make Stowaway give up): check hiding and fix it.
+    private func observeWake() {
+        let workspace = NSWorkspace.shared.notificationCenter
+        for name in [NSWorkspace.didWakeNotification, NSWorkspace.screensDidWakeNotification, NSWorkspace.sessionDidBecomeActiveNotification] {
+            workspace.addObserver(self, selector: #selector(didWake(_:)), name: name, object: nil)
+        }
+        let distributed = DistributedNotificationCenter.default()
+        distributed.addObserver(self, selector: #selector(didWake(_:)), name: .init("com.apple.screenIsUnlocked"), object: nil)
+        distributed.addObserver(self, selector: #selector(didLock(_:)), name: .init("com.apple.screenIsLocked"), object: nil)
+        workspace.addObserver(self, selector: #selector(didLock(_:)), name: NSWorkspace.screensDidSleepNotification, object: nil)
+    }
+
+    @objc private func didLock(_ notification: Notification) {
+        Self.log.notice("\(notification.name.rawValue, privacy: .public)")
+    }
+
+    @objc private func didWake(_ notification: Notification) {
+        Self.log.notice("\(notification.name.rawValue, privacy: .public): checking in 2 s")
+        // Several of these come together (wake, screens wake, unlock): only the last one counts.
+        wakeTask?.cancel()
+        wakeTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(2))
+            guard let self, !Task.isCancelled, started, !paused, problem != .unavailable else { return }
+            // Opening an icon turns hiding on again when it's done.
+            guard revealTask == nil else { return }
+            if let problem {
+                // Hiding was given up before: one more go now that the menu bar is back.
+                Self.log.notice("re-acquiring after wake, was \(String(describing: problem), privacy: .public)")
+                self.problem = nil
+                recovery.reset()
+                applyLayout()
+            } else if recoveryTask == nil {
+                // macOS normally keeps the assertion: only check, and turn hiding on again when it doesn't work.
+                Self.log.notice("checking after wake")
+                scheduleCheck()
+            }
+        }
     }
 
     func showSample(_ apps: [MenuBarApp]) {
@@ -120,6 +169,7 @@ import SwiftUI
     /// The private API may stop working in a macOS update: check the menu bar a moment later and give up loudly.
     /// The menu bar is read a few times over 3 s and only a problem seen every time counts: right after waking up
     /// or a display change MenuBarAgent is still rebuilding it and a single reading can miss icons.
+    /// A reading without a problem means hiding works, so a later problem gets every recovery attempt again.
     private func scheduleCheck() {
         checkTask?.cancel()
         checkTask = Task { [weak self] in
@@ -130,8 +180,12 @@ import SwiftUI
                       let visible = MenuBarItems.visibleCounts() else { return }
                 let allowed = Set(layout.allowedBundleIDs(own: ownID))
                 let expectedHidden = MenuBarItems.apps(known: known.counts).map(\.bundleID).filter { !allowed.contains($0) }
-                guard let problem = HidingCheck.problem(visible: visible, own: ownID, expectedHidden: expectedHidden),
-                      found == nil || found == problem else { return }
+                guard let problem = HidingCheck.problem(visible: visible, own: ownID, expectedHidden: expectedHidden) else {
+                    recovery.reset()
+                    alerted = false
+                    return
+                }
+                guard found == nil || found == problem else { return }
                 Self.log.notice("check \(attempt, privacy: .public): \(String(describing: problem), privacy: .public), visible \(visible.count, privacy: .public) apps")
                 found = problem
             }
@@ -139,13 +193,29 @@ import SwiftUI
         }
     }
 
+    /// Tries to turn hiding on again a few times (MenuBarAgent may be busy after waking up) and only then
+    /// shows every icon and tells the user.
     private func fail(_ problem: HidingProblem) {
-        guard self.problem == nil else { return }
+        guard self.problem == nil, recoveryTask == nil else { return }
+        checkTask?.cancel()
+        if let delay = recovery.nextDelay(for: problem) {
+            Self.log.notice("hiding failed (\(String(describing: problem), privacy: .public)), attempt \(self.recovery.attempts, privacy: .public) in \(delay, privacy: .public) s")
+            recoveryTask = Task { [weak self] in
+                try? await Task.sleep(for: .seconds(delay))
+                guard let self, !Task.isCancelled else { return }
+                recoveryTask = nil
+                // Opening an icon turns hiding on again when it's done.
+                if revealTask == nil { applyLayout() }
+            }
+            return
+        }
         Self.log.error("hiding turned off: \(String(describing: problem), privacy: .public)")
         self.problem = problem
         revealTask?.cancel()
         hider.showAll()
         popover.performClose(nil)
+        guard !alerted else { return }
+        alerted = true
         let alert = NSAlert()
         alert.messageText = String(localized: "Stowaway can't hide icons")
         alert.informativeText = problem.message
@@ -156,6 +226,8 @@ import SwiftUI
 
     @objc private func tryAgain() {
         problem = nil
+        recovery.reset()
+        alerted = false
         applyLayout()
     }
 
@@ -190,9 +262,15 @@ import SwiftUI
     /// A newly launched app's icon is hidden right away, so show it for a moment to learn whether it has one.
     private func probe(bundleID: String, pid: pid_t) {
         guard started, !paused, known.count(of: bundleID) == 0, !layout.isPinned(bundleID), bundleID != ownID else { return }
-        Task { [weak self] in
+        let previous = probeTask
+        probeTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(3)) // apps add their icon a moment after launch
-            guard let self, revealTask == nil, !paused else { return }
+            await previous?.value
+            guard let self, revealTask == nil, recoveryTask == nil, !paused, problem == nil,
+                  known.count(of: bundleID) == 0 else { return }
+            // Helpers and XPC services (no UI at all) can't have an icon: don't touch the menu bar for them.
+            guard let app = NSRunningApplication(processIdentifier: pid), !app.isTerminated,
+                  app.activationPolicy != .prohibited else { return }
             applyLayout(revealing: bundleID)
             // Wait (max 3 s, as when opening an icon) until macOS draws the icon.
             var frames: [CGRect] = []
