@@ -5,7 +5,9 @@
 #
 # Builds the release version and packages it as an .app in build/ (names and IDs come from app.conf):
 # "<APP_NAME> Dev.app" for development builds (DEV_CHANNEL=1), "<APP_NAME>.app" otherwise.
-#   VERSION=1.2.3      version written to Info.plist (default 0.1.0)
+#   VERSION=1.2.3      version written to Info.plist. Default: from git, e.g. "0.1.4" on a release tag,
+#                      "0.1.4-2-gd27d071" two commits later, "-dirty" with uncommitted changes (0.1.0 without tags);
+#                      CFBundleVersion gets only the numbers ("0.1.4").
 #   UNIVERSAL=1        build for both Apple silicon and Intel (used for public releases)
 #   SIGN_IDENTITY=…    code signing identity; default: "<APP_NAME> Local Dev" when it exists in the keychain
 #                      (see scripts/setup-dev-signing.sh), otherwise ad-hoc ("-")
@@ -39,7 +41,11 @@ fi
 swift build -c release "${ARCH_FLAGS[@]}"
 BIN="$(swift build -c release "${ARCH_FLAGS[@]}" --show-bin-path)/$EXECUTABLE"
 
-VERSION="${VERSION:-0.1.0}"
+if [[ -z "${VERSION:-}" ]]; then
+    VERSION="$(git describe --tags --match 'v[0-9]*' --dirty 2>/dev/null | sed 's/^v//')" || VERSION=""
+    [[ -n "$VERSION" ]] || VERSION="0.1.0"
+fi
+BUILD_VERSION="${VERSION%%[-+]*}"
 if [[ "${CHANNEL:-dev}" == "release" || "$DEV_CHANNEL" != "1" ]]; then
     DISPLAY_NAME="$APP_NAME"
     BUNDLE="$APP_BUNDLE"
@@ -88,7 +94,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>CFBundlePackageType</key><string>APPL</string>
     ${ICON_KEY}
     <key>CFBundleShortVersionString</key><string>${VERSION}</string>
-    <key>CFBundleVersion</key><string>${VERSION}</string>
+    <key>CFBundleVersion</key><string>${BUILD_VERSION}</string>
     <key>CFBundleDevelopmentRegion</key><string>en</string>
     <key>CFBundleLocalizations</key><array>${(j::)LOCALIZATIONS}</array>
     <key>LSMinimumSystemVersion</key><string>${MIN_MACOS}</string>
